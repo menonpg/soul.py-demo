@@ -4,71 +4,83 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>soul.py — Live Demo</title>
+<script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
 <style>
   * { box-sizing: border-box; margin: 0; padding: 0; }
   body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; background: #0f0f0f; color: #e8e8e8; height: 100vh; display: flex; flex-direction: column; }
 
-  header { padding: 20px 24px; border-bottom: 1px solid #222; display: flex; align-items: center; gap: 12px; }
-  header .logo { font-size: 1.4rem; font-weight: 700; color: #fff; }
-  header .logo span { color: #7c6af7; }
-  header .tagline { font-size: 0.85rem; color: #666; }
-  header .links { margin-left: auto; display: flex; gap: 16px; }
-  header .links a { color: #7c6af7; text-decoration: none; font-size: 0.85rem; }
-  header .links a:hover { text-decoration: underline; }
+  header { padding: 16px 24px; border-bottom: 1px solid #222; display: flex; align-items: center; gap: 12px; }
+  .logo { font-size: 1.3rem; font-weight: 700; color: #fff; }
+  .logo span { color: #7c6af7; }
+  .tagline { font-size: 0.8rem; color: #555; }
+  .links { margin-left: auto; display: flex; gap: 16px; }
+  .links a { color: #7c6af7; text-decoration: none; font-size: 0.82rem; }
+  .links a:hover { text-decoration: underline; }
 
   .main { display: flex; flex: 1; overflow: hidden; }
 
-  /* Chat panel */
+  /* Chat */
   .chat { flex: 1; display: flex; flex-direction: column; border-right: 1px solid #222; }
-  .chat-messages { flex: 1; overflow-y: auto; padding: 24px; display: flex; flex-direction: column; gap: 16px; }
 
-  .msg { max-width: 80%; line-height: 1.5; }
-  .msg.user { align-self: flex-end; background: #7c6af7; color: #fff; padding: 10px 14px; border-radius: 18px 18px 4px 18px; font-size: 0.9rem; }
-  .msg.assistant { align-self: flex-start; background: #1e1e1e; padding: 10px 14px; border-radius: 18px 18px 18px 4px; font-size: 0.9rem; border: 1px solid #2a2a2a; }
-  .msg.system { align-self: center; color: #555; font-size: 0.8rem; font-style: italic; }
+  /* Session bar */
+  .session-bar { padding: 8px 16px; background: #111; border-bottom: 1px solid #1e1e1e; display: flex; align-items: center; gap: 10px; font-size: 0.8rem; }
+  .session-badge { background: #7c6af7; color: #fff; padding: 2px 10px; border-radius: 20px; font-weight: 600; font-size: 0.75rem; }
+  .session-bar .hint { color: #444; flex: 1; }
+  .new-session-btn { background: #1a1a1a; border: 1px solid #333; color: #888; padding: 5px 12px; border-radius: 6px; cursor: pointer; font-size: 0.78rem; transition: all 0.2s; }
+  .new-session-btn:hover { border-color: #7c6af7; color: #7c6af7; }
+  .new-session-btn:disabled { opacity: 0.4; cursor: not-allowed; }
 
-  .chat-input { padding: 16px; border-top: 1px solid #222; display: flex; gap: 10px; }
-  .chat-input input { flex: 1; background: #1a1a1a; border: 1px solid #333; color: #e8e8e8; padding: 10px 14px; border-radius: 8px; font-size: 0.9rem; outline: none; }
+  .chat-messages { flex: 1; overflow-y: auto; padding: 20px; display: flex; flex-direction: column; gap: 14px; }
+
+  .msg { max-width: 82%; line-height: 1.55; }
+  .msg.user { align-self: flex-end; background: #7c6af7; color: #fff; padding: 10px 14px; border-radius: 18px 18px 4px 18px; font-size: 0.88rem; }
+  .msg.assistant { align-self: flex-start; background: #1a1a1a; padding: 10px 14px; border-radius: 18px 18px 18px 4px; font-size: 0.88rem; border: 1px solid #2a2a2a; }
+  .msg.assistant p { margin-bottom: 6px; } .msg.assistant p:last-child { margin-bottom: 0; }
+  .msg.assistant ul, .msg.assistant ol { margin: 4px 0 4px 16px; }
+  .msg.assistant li { margin-bottom: 2px; }
+  .msg.assistant code { background: #252525; padding: 1px 5px; border-radius: 3px; font-size: 0.83em; }
+  .msg.assistant pre { background: #252525; padding: 10px; border-radius: 6px; overflow-x: auto; margin: 6px 0; }
+  .msg.assistant pre code { background: none; padding: 0; }
+  .msg.assistant strong { color: #fff; }
+  .msg.system { align-self: center; color: #555; font-size: 0.78rem; font-style: italic; background: #111; padding: 6px 14px; border-radius: 20px; border: 1px solid #222; }
+  .msg.system.new-session-divider { color: #7c6af7; border-color: #3a2f7a; background: #1a1530; }
+
+  .chat-input { padding: 14px 16px; border-top: 1px solid #222; display: flex; gap: 10px; }
+  .chat-input input { flex: 1; background: #1a1a1a; border: 1px solid #2a2a2a; color: #e8e8e8; padding: 10px 14px; border-radius: 8px; font-size: 0.88rem; outline: none; }
   .chat-input input:focus { border-color: #7c6af7; }
-  .chat-input button { background: #7c6af7; color: #fff; border: none; padding: 10px 20px; border-radius: 8px; cursor: pointer; font-size: 0.9rem; font-weight: 600; }
+  .chat-input button { background: #7c6af7; color: #fff; border: none; padding: 10px 18px; border-radius: 8px; cursor: pointer; font-size: 0.88rem; font-weight: 600; }
   .chat-input button:hover { background: #6a5ae0; }
-  .chat-input button:disabled { background: #333; cursor: not-allowed; }
+  .chat-input button:disabled { background: #2a2a2a; cursor: not-allowed; }
 
   /* Memory panel */
-  .memory-panel { width: 340px; display: flex; flex-direction: column; background: #0a0a0a; }
-  .memory-header { padding: 16px 20px; border-bottom: 1px solid #222; display: flex; align-items: center; justify-content: space-between; }
-  .memory-header h3 { font-size: 0.85rem; color: #888; text-transform: uppercase; letter-spacing: 0.05em; }
-  .memory-header .count { font-size: 0.75rem; color: #555; }
-  .memory-content { flex: 1; overflow-y: auto; padding: 16px 20px; font-family: 'SF Mono', 'Fira Code', monospace; font-size: 0.75rem; line-height: 1.6; color: #666; white-space: pre-wrap; word-break: break-word; }
-  .memory-content .highlight { color: #7c6af7; }
+  .memory-panel { width: 320px; display: flex; flex-direction: column; background: #090909; }
+  .memory-header { padding: 14px 18px; border-bottom: 1px solid #1e1e1e; }
+  .memory-header h3 { font-size: 0.8rem; color: #555; text-transform: uppercase; letter-spacing: 0.06em; margin-bottom: 2px; }
+  .memory-meta { font-size: 0.72rem; color: #333; }
+  .memory-content { flex: 1; overflow-y: auto; padding: 14px 18px; font-family: 'SF Mono', 'Fira Code', monospace; font-size: 0.72rem; line-height: 1.7; color: #555; white-space: pre-wrap; word-break: break-word; }
+  .memory-content .new { color: #7c6af7; }
 
-  .reset-btn { margin: 12px 20px; background: none; border: 1px solid #333; color: #555; padding: 8px; border-radius: 6px; cursor: pointer; font-size: 0.8rem; }
-  .reset-btn:hover { border-color: #555; color: #888; }
+  .reset-btn { margin: 10px 18px; background: none; border: 1px solid #1e1e1e; color: #333; padding: 7px; border-radius: 6px; cursor: pointer; font-size: 0.75rem; }
+  .reset-btn:hover { border-color: #333; color: #555; }
 
-  /* Loading */
-  .typing { display: flex; gap: 4px; align-items: center; padding: 10px 14px; background: #1e1e1e; border-radius: 18px; border: 1px solid #2a2a2a; align-self: flex-start; }
-  .typing span { width: 6px; height: 6px; background: #555; border-radius: 50%; animation: bounce 1.2s infinite; }
+  /* Typing */
+  .typing { display: flex; gap: 4px; align-items: center; padding: 10px 14px; background: #1a1a1a; border-radius: 18px; border: 1px solid #2a2a2a; align-self: flex-start; }
+  .typing span { width: 5px; height: 5px; background: #555; border-radius: 50%; animation: bounce 1.2s infinite; }
   .typing span:nth-child(2) { animation-delay: 0.2s; }
   .typing span:nth-child(3) { animation-delay: 0.4s; }
-  @keyframes bounce { 0%,60%,100% { transform: translateY(0); } 30% { transform: translateY(-6px); } }
+  @keyframes bounce { 0%,60%,100%{transform:translateY(0)} 30%{transform:translateY(-5px)} }
 
-  .intro { text-align: center; margin: auto; color: #444; max-width: 320px; }
-  .intro h2 { font-size: 1.1rem; color: #666; margin-bottom: 8px; }
-  .intro p { font-size: 0.85rem; line-height: 1.6; }
-  .intro .examples { margin-top: 16px; display: flex; flex-direction: column; gap: 8px; }
-  .intro .ex { background: #1a1a1a; border: 1px solid #2a2a2a; padding: 8px 12px; border-radius: 8px; font-size: 0.8rem; color: #666; cursor: pointer; text-align: left; }
+  /* Intro */
+  .intro { text-align: center; margin: auto; color: #444; max-width: 340px; padding: 20px; }
+  .intro h2 { font-size: 1rem; color: #666; margin-bottom: 8px; }
+  .intro p { font-size: 0.82rem; line-height: 1.6; margin-bottom: 14px; }
+  .intro .steps { text-align: left; background: #111; border: 1px solid #1e1e1e; border-radius: 10px; padding: 14px 16px; margin-bottom: 14px; }
+  .intro .steps .step { font-size: 0.8rem; color: #555; padding: 4px 0; }
+  .intro .steps .step span { color: #7c6af7; font-weight: 600; }
+  .intro .examples { display: flex; flex-direction: column; gap: 6px; }
+  .intro .ex { background: #111; border: 1px solid #1e1e1e; padding: 8px 12px; border-radius: 8px; font-size: 0.8rem; color: #555; cursor: pointer; text-align: left; }
   .intro .ex:hover { border-color: #7c6af7; color: #aaa; }
-  .msg.assistant p { margin-bottom: 8px; }
-  .msg.assistant p:last-child { margin-bottom: 0; }
-  .msg.assistant ul, .msg.assistant ol { margin: 6px 0 6px 16px; }
-  .msg.assistant li { margin-bottom: 2px; }
-  .msg.assistant code { background: #2a2a2a; padding: 1px 5px; border-radius: 3px; font-size: 0.85em; }
-  .msg.assistant pre { background: #2a2a2a; padding: 10px; border-radius: 6px; overflow-x: auto; margin: 6px 0; }
-  .msg.assistant pre code { background: none; padding: 0; }
-  .msg.assistant h1,.msg.assistant h2,.msg.assistant h3 { margin: 8px 0 4px; color: #ccc; }
-  .msg.assistant strong { color: #fff; }
 </style>
-<script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
 </head>
 <body>
 
@@ -80,25 +92,36 @@
   <div class="links">
     <a href="https://github.com/menonpg/soul.py" target="_blank">★ GitHub</a>
     <a href="https://blog.themenonlab.com/blog/soul-py-persistent-memory-llm-agents" target="_blank">Blog post</a>
-    
   </div>
 </header>
 
 <div class="main">
   <div class="chat">
+    <div class="session-bar">
+      <span class="session-badge" id="session-badge">Session 1</span>
+      <span class="hint">Chat, then hit "New Session" — the agent will remember you</span>
+      <button class="new-session-btn" id="new-session-btn" onclick="newSession()" disabled>↻ New Session</button>
+    </div>
+
     <div class="chat-messages" id="messages">
       <div class="intro">
-        <h2>Your AI remembers nothing.<br>This fixes it.</h2>
-        <p>Watch MEMORY.md grow on the right as you chat. Each message is timestamped and persisted — just like the real soul.py does on your machine.</p>
+        <h2>Watch memory persist across sessions</h2>
+        <p>This is what soul.py does — two markdown files replace a database.</p>
+        <div class="steps">
+          <div class="step"><span>Step 1</span> — Tell the agent something about yourself</div>
+          <div class="step"><span>Step 2</span> — Click "New Session" (simulates a new Python process)</div>
+          <div class="step"><span>Step 3</span> — Ask "What do you know about me?" — it remembers</div>
+        </div>
         <div class="examples">
-          <button class="ex" onclick="sendExample(this)">My name is Prahlad and I'm building an AI research lab.</button>
-          <button class="ex" onclick="sendExample(this)">I'm working on a fine-tuning pipeline for medical imaging models.</button>
-          <button class="ex" onclick="sendExample(this)">What do you know about me so far?</button>
+          <button class="ex" onclick="sendExample(this)">My name is Prahlad and I'm building an AI research lab in Pittsburgh.</button>
+          <button class="ex" onclick="sendExample(this)">I fly Cessnas out of KBTP and own an Audi R8.</button>
+          <button class="ex" onclick="sendExample(this)">I'm working on a paper about persistent memory for LLM agents.</button>
         </div>
       </div>
     </div>
+
     <div class="chat-input">
-      <input type="text" id="input" placeholder="Say something — then refresh and ask what I remember..." onkeydown="if(event.key==='Enter') send()" />
+      <input type="text" id="input" placeholder="Tell the agent something..." onkeydown="if(event.key==='Enter') send()" />
       <button id="send-btn" onclick="send()">Send</button>
     </div>
   </div>
@@ -106,16 +129,18 @@
   <div class="memory-panel">
     <div class="memory-header">
       <h3>📝 MEMORY.md</h3>
-      <span class="count" id="msg-count">0 exchanges</span>
+      <div class="memory-meta" id="memory-meta">0 exchanges · persists across sessions</div>
     </div>
     <div class="memory-content" id="memory-view"># MEMORY.md
 (No memories yet — start chatting!)</div>
-    <button class="reset-btn" onclick="resetSession()">↺ Reset session</button>
+    <button class="reset-btn" onclick="resetAll()">↺ Reset everything</button>
   </div>
 </div>
 
 <script>
 let introCleared = false;
+let msgCount = 0;
+let sessionCount = 1;
 
 function clearIntro() {
   if (!introCleared) {
@@ -124,11 +149,11 @@ function clearIntro() {
   }
 }
 
-function appendMsg(role, text) {
+function appendMsg(role, text, extraClass) {
   clearIntro();
   const div = document.createElement('div');
-  div.className = `msg ${role}`;
-  if (role === "assistant") {
+  div.className = `msg ${role}${extraClass ? ' ' + extraClass : ''}`;
+  if (role === 'assistant') {
     div.innerHTML = marked.parse(text);
   } else {
     div.textContent = text;
@@ -136,72 +161,86 @@ function appendMsg(role, text) {
   const container = document.getElementById('messages');
   container.appendChild(div);
   container.scrollTop = container.scrollHeight;
-  return div;
 }
 
 function showTyping() {
   clearIntro();
   const div = document.createElement('div');
-  div.className = 'typing';
-  div.id = 'typing';
+  div.className = 'typing'; div.id = 'typing';
   div.innerHTML = '<span></span><span></span><span></span>';
   const container = document.getElementById('messages');
   container.appendChild(div);
   container.scrollTop = container.scrollHeight;
 }
-
-function hideTyping() {
-  const t = document.getElementById('typing');
-  if (t) t.remove();
-}
+function hideTyping() { const t = document.getElementById('typing'); if (t) t.remove(); }
 
 function updateMemory(text, count) {
+  msgCount = count;
   document.getElementById('memory-view').textContent = text;
-  document.getElementById('msg-count').textContent = `${count} exchange${count !== 1 ? 's' : ''}`;
+  document.getElementById('memory-meta').textContent = `${count} exchange${count !== 1 ? 's' : ''} · persists across sessions`;
   const mv = document.getElementById('memory-view');
   mv.scrollTop = mv.scrollHeight;
+  document.getElementById('new-session-btn').disabled = count === 0;
 }
 
 async function send(text) {
   const input = document.getElementById('input');
   const question = text || input.value.trim();
   if (!question) return;
-
   input.value = '';
   document.getElementById('send-btn').disabled = true;
   appendMsg('user', question);
   showTyping();
-
   try {
     const res = await fetch('/ask', {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ question }),
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({question}),
       credentials: 'include',
     });
     const data = await res.json();
     hideTyping();
+    if (data.error) { appendMsg('system', 'Error: ' + data.error); return; }
     appendMsg('assistant', data.answer);
     updateMemory(data.memory, data.message_count);
-  } catch (e) {
+  } catch(e) {
     hideTyping();
     appendMsg('system', 'Something went wrong. Try again.');
   }
-
   document.getElementById('send-btn').disabled = false;
   document.getElementById('input').focus();
 }
 
-function sendExample(btn) {
-  send(btn.textContent);
+function sendExample(btn) { send(btn.textContent); }
+
+async function newSession() {
+  const btn = document.getElementById('new-session-btn');
+  btn.disabled = true;
+  try {
+    const res = await fetch('/new-session', {method: 'POST', credentials: 'include'});
+    const data = await res.json();
+    if (!data.ok) { alert('Start a conversation first.'); btn.disabled = false; return; }
+    sessionCount = data.session_count;
+    document.getElementById('session-badge').textContent = `Session ${sessionCount}`;
+    // Show divider in chat
+    appendMsg('system', `⟳ New session started — history cleared, MEMORY.md intact. Ask "What do you know about me?"`, 'new-session-divider');
+    // Suggest the reveal prompt
+    document.getElementById('input').value = 'What do you know about me?';
+    document.getElementById('input').focus();
+    btn.disabled = false;
+  } catch(e) {
+    btn.disabled = false;
+  }
 }
 
-async function resetSession() {
-  await fetch('/reset', { method: 'POST', credentials: 'include' });
+async function resetAll() {
+  await fetch('/reset', {method: 'POST', credentials: 'include'});
   document.getElementById('messages').innerHTML = '';
-  introCleared = false;
+  introCleared = false; msgCount = 0; sessionCount = 1;
   document.getElementById('memory-view').textContent = '# MEMORY.md\n(No memories yet — start chatting!)';
-  document.getElementById('msg-count').textContent = '0 exchanges';
+  document.getElementById('memory-meta').textContent = '0 exchanges · persists across sessions';
+  document.getElementById('session-badge').textContent = 'Session 1';
+  document.getElementById('new-session-btn').disabled = true;
   location.reload();
 }
 </script>

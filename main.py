@@ -1,7 +1,8 @@
 """
 soul.py — Live Demo
-FastAPI app: each visitor gets an isolated agent session.
-Memory resets after 30 min of inactivity.
+Shows the core soul.py promise: memory persists across sessions.
+Session 1: chat, build up memory.
+New Session: history clears, but MEMORY.md carries over — agent remembers.
 """
 import os, time, uuid
 from datetime import datetime
@@ -12,7 +13,6 @@ from fastapi.middleware.cors import CORSMiddleware
 app = FastAPI()
 app.add_middleware(CORSMiddleware, allow_origins=["*"], allow_methods=["*"], allow_headers=["*"])
 
-# Lazy client — initialized on first request so missing key gives clean error
 _client = None
 def get_client():
     global _client
@@ -28,8 +28,8 @@ sessions: dict = {}
 SESSION_TTL = 1800
 
 DEFAULT_SOUL = """You are a helpful, persistent AI assistant running on soul.py.
-You have a memory — every exchange is logged and you read it at the start of each session.
-You are concise, direct, and genuinely useful. You remember everything from this session."""
+You have a memory — every exchange is logged and injected at the start of each session.
+You are concise and direct. When a new session starts, acknowledge what you remember naturally — don't say 'based on our previous conversation', just speak as if you know the person."""
 
 def get_or_create_session(session_id: str) -> dict:
     now = time.time()
@@ -43,6 +43,7 @@ def get_or_create_session(session_id: str) -> dict:
             "soul": DEFAULT_SOUL,
             "last_active": now,
             "message_count": 0,
+            "session_count": 1,
         }
     sessions[session_id]["last_active"] = now
     return sessions[session_id]
@@ -80,12 +81,13 @@ async def ask(request: Request, session_id: str = Cookie(default=None)):
         session["message_count"] += 1
 
         ts = datetime.now().strftime("%H:%M")
-        session["memory"] += f"\n## {ts}\nQ: {question}\nA: {answer}\n"
+        session["memory"] += f"\n## Session {session['session_count']} — {ts}\nQ: {question}\nA: {answer}\n"
 
         response = JSONResponse({
             "answer": answer,
             "memory": session["memory"],
             "message_count": session["message_count"],
+            "session_count": session["session_count"],
         })
         response.set_cookie("session_id", session_id, max_age=SESSION_TTL, samesite="lax")
         return response
@@ -93,8 +95,23 @@ async def ask(request: Request, session_id: str = Cookie(default=None)):
     except Exception as e:
         return JSONResponse({"error": str(e)}, status_code=500)
 
+@app.post("/new-session")
+async def new_session(session_id: str = Cookie(default=None)):
+    """Start a new session — clears history but KEEPS memory. This is the demo moment."""
+    if session_id and session_id in sessions:
+        sessions[session_id]["history"] = []  # clear conversation history
+        sessions[session_id]["session_count"] += 1  # increment session number
+        # memory persists — this is the point
+        return JSONResponse({
+            "ok": True,
+            "memory": sessions[session_id]["memory"],
+            "session_count": sessions[session_id]["session_count"],
+        })
+    return JSONResponse({"ok": False, "error": "no session"}, status_code=400)
+
 @app.post("/reset")
 async def reset(session_id: str = Cookie(default=None)):
+    """Full reset — clears everything including memory."""
     if session_id and session_id in sessions:
         del sessions[session_id]
     return JSONResponse({"ok": True})
