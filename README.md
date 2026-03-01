@@ -1,20 +1,22 @@
-# soul.py — Live Demo
+# soul.py v1.0 — RAG Demo
 
-Interactive demo for [soul.py](https://github.com/menonpg/soul.py).
+Live demo for [soul.py v1.0-rag branch](https://github.com/menonpg/soul.py/tree/v1.0-rag).
 
-Chat with an agent and watch MEMORY.md grow in real time. Each visitor gets an isolated session. Memory resets after 30 min of inactivity.
+Shows semantic RAG retrieval — only relevant memory chunks are injected per query.
+Watch the "Retrieved Context" panel to see what the agent actually sees vs full MEMORY.md.
+
+**v0.1 demo:** https://soul.themenonlab.com
+**v1.0 demo:** this app
 
 ## Deploy to Railway
 
 1. Fork this repo
-2. New project on Railway → Deploy from GitHub
-3. Add env var: `ANTHROPIC_API_KEY=sk-ant-...`
+2. Railway → New Project → Deploy from GitHub
+3. Add env vars:
+   - `ANTHROPIC_API_KEY`
+   - `QDRANT_URL`
+   - `QDRANT_API_KEY`
+   - `AZURE_EMBEDDING_ENDPOINT`
+   - `AZURE_EMBEDDING_KEY`
+   - `MEMORY_MODE=qdrant` (or `bm25` for keyword mode)
 4. Deploy
-
-## Run locally
-
-```bash
-pip install -r requirements.txt
-export ANTHROPIC_API_KEY=sk-ant-...
-uvicorn main:app --reload
-```
