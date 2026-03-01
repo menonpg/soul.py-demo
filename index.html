@@ -86,8 +86,8 @@
 
 <header>
   <div>
-    <div class="logo">soul<span>.py</span> <span style="font-size:0.7rem;background:#1a2a1a;color:#4caf50;padding:2px 8px;border-radius:10px;margin-left:8px;">v1.0 RAG</span></div>
-    <div class="tagline">v1.0: Semantic RAG memory — only relevant context retrieved per query</div>
+    <div class="logo">soul<span>.py</span></div>
+    <div class="tagline">Persistent memory for any LLM — no database needed</div>
   </div>
   <div class="links">
     <a href="https://github.com/menonpg/soul.py" target="_blank">★ GitHub</a>
@@ -246,25 +246,3 @@ async function resetAll() {
 </script>
 </body>
 </html>
-<script>
-// Patch: intercept ask response to show retrieved context
-const _origFetch = window.fetch;
-window.fetch = async function(...args) {
-    const res = await _origFetch(...args);
-    if (args[0] === '/ask') {
-        const clone = res.clone();
-        clone.json().then(data => {
-            if (data.retrieved) {
-                const panel = document.getElementById('retrieved-view');
-                const meta = document.getElementById('retrieved-meta');
-                if (panel) {
-                    panel.textContent = data.retrieved;
-                    panel.scrollTop = panel.scrollHeight;
-                }
-                if (meta) meta.textContent = `${data.total_memories} total · ${data.mode} mode`;
-            }
-        }).catch(()=>{});
-    }
-    return res;
-};
-</script>
