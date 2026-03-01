@@ -4,22 +4,28 @@ FastAPI app: each visitor gets an isolated agent session.
 Memory resets after 30 min of inactivity.
 """
 import os, time, uuid
-from pathlib import Path
 from datetime import datetime
 from fastapi import FastAPI, Request, Cookie
 from fastapi.responses import HTMLResponse, JSONResponse
 from fastapi.middleware.cors import CORSMiddleware
-import anthropic
 
 app = FastAPI()
 app.add_middleware(CORSMiddleware, allow_origins=["*"], allow_methods=["*"], allow_headers=["*"])
 
-ANTHROPIC_KEY = os.environ.get("ANTHROPIC_API_KEY", "")
-client = anthropic.Anthropic(api_key=ANTHROPIC_KEY)
+# Lazy client — initialized on first request so missing key gives clean error
+_client = None
+def get_client():
+    global _client
+    if _client is None:
+        import anthropic
+        key = os.environ.get("ANTHROPIC_API_KEY", "")
+        if not key:
+            raise RuntimeError("ANTHROPIC_API_KEY not set")
+        _client = anthropic.Anthropic(api_key=key)
+    return _client
 
-# In-memory session store: session_id -> {history, memory, soul, last_active}
 sessions: dict = {}
-SESSION_TTL = 1800  # 30 min
+SESSION_TTL = 1800
 
 DEFAULT_SOUL = """You are a helpful, persistent AI assistant running on soul.py.
 You have a memory — every exchange is logged and you read it at the start of each session.
@@ -27,11 +33,9 @@ You are concise, direct, and genuinely useful. You remember everything from this
 
 def get_or_create_session(session_id: str) -> dict:
     now = time.time()
-    # Evict stale sessions
     stale = [k for k, v in sessions.items() if now - v["last_active"] > SESSION_TTL]
     for k in stale:
         del sessions[k]
-
     if session_id not in sessions:
         sessions[session_id] = {
             "history": [],
@@ -52,38 +56,42 @@ async def index():
 
 @app.post("/ask")
 async def ask(request: Request, session_id: str = Cookie(default=None)):
-    body = await request.json()
-    question = body.get("question", "").strip()
-    if not question:
-        return JSONResponse({"error": "empty question"}, status_code=400)
+    try:
+        body = await request.json()
+        question = body.get("question", "").strip()
+        if not question:
+            return JSONResponse({"error": "empty question"}, status_code=400)
 
-    if not session_id:
-        session_id = str(uuid.uuid4())
+        if not session_id:
+            session_id = str(uuid.uuid4())
 
-    session = get_or_create_session(session_id)
-    session["history"].append({"role": "user", "content": question})
+        session = get_or_create_session(session_id)
+        session["history"].append({"role": "user", "content": question})
 
-    resp = client.messages.create(
-        model="claude-haiku-4-5",
-        max_tokens=512,
-        system=build_system(session),
-        messages=session["history"],
-    )
-    answer = resp.content[0].text.strip()
-    session["history"].append({"role": "assistant", "content": answer})
-    session["message_count"] += 1
+        client = get_client()
+        resp = client.messages.create(
+            model="claude-haiku-4-5",
+            max_tokens=512,
+            system=build_system(session),
+            messages=session["history"],
+        )
+        answer = resp.content[0].text.strip()
+        session["history"].append({"role": "assistant", "content": answer})
+        session["message_count"] += 1
 
-    # Append to memory
-    ts = datetime.now().strftime("%H:%M")
-    session["memory"] += f"\n## {ts}\nQ: {question}\nA: {answer}\n"
+        ts = datetime.now().strftime("%H:%M")
+        session["memory"] += f"\n## {ts}\nQ: {question}\nA: {answer}\n"
 
-    response = JSONResponse({
-        "answer": answer,
-        "memory": session["memory"],
-        "message_count": session["message_count"],
-    })
-    response.set_cookie("session_id", session_id, max_age=SESSION_TTL, samesite="lax")
-    return response
+        response = JSONResponse({
+            "answer": answer,
+            "memory": session["memory"],
+            "message_count": session["message_count"],
+        })
+        response.set_cookie("session_id", session_id, max_age=SESSION_TTL, samesite="lax")
+        return response
+
+    except Exception as e:
+        return JSONResponse({"error": str(e)}, status_code=500)
 
 @app.post("/reset")
 async def reset(session_id: str = Cookie(default=None)):
@@ -93,4 +101,5 @@ async def reset(session_id: str = Cookie(default=None)):
 
 @app.get("/health")
 async def health():
-    return {"ok": True, "sessions": len(sessions)}
+    key_set = bool(os.environ.get("ANTHROPIC_API_KEY"))
+    return {"ok": True, "sessions": len(sessions), "key_set": key_set}
