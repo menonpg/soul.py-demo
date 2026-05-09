@@ -24,6 +24,7 @@ def get_client():
 
 sessions: dict = {}
 SESSION_TTL = 1800
+MESSAGE_LIMIT = int(os.environ.get("MESSAGE_LIMIT", "10"))
 
 DEFAULT_SOUL = """You are a helpful, persistent AI assistant running on soul.py.
 You have a memory — every exchange is logged and you read it at the start of each session.
@@ -61,6 +62,15 @@ async def ask(request: Request, session_id: str = Cookie(default=None)):
         if not session_id: session_id = str(uuid.uuid4())
         session = get_or_create_session(session_id)
         session["history"].append({"role":"user","content":question})
+
+        # Rate limit
+        if session["message_count"] >= MESSAGE_LIMIT:
+            return JSONResponse({
+                "error": f"Session limit reached ({MESSAGE_LIMIT} messages). Refresh to start a new session.",
+                "limit_reached": True,
+                "message_count": session["message_count"],
+            }, status_code=429)
+
         client = get_client()
         resp = client.messages.create(
             model="claude-haiku-4-5", max_tokens=512,
